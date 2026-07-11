@@ -41,3 +41,62 @@ def get_summary(
         "nb_clients_uniques": nb_clients_uniques,
         "nb_produits_uniques": nb_produits_uniques,
     }
+
+
+@router.get("/monthly")
+def get_monthly_sales(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[dict]:
+    rows = (
+        db.query(Vente.annee, Vente.mois, func.coalesce(func.sum(Vente.montant), 0).label("ca_total"))
+        .group_by(Vente.annee, Vente.mois)
+        .order_by(Vente.annee, Vente.mois)
+        .all()
+    )
+
+    return [
+        {"annee": row.annee, "mois": row.mois, "ca_total": float(row.ca_total)}
+        for row in rows
+    ]
+
+
+@router.get("/by_boutique")
+def get_sales_by_boutique(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[dict]:
+    rows = (
+        db.query(
+            Vente.id_boutique,
+            func.coalesce(func.sum(Vente.montant), 0).label("ca_total"),
+        )
+        .group_by(Vente.id_boutique)
+        .order_by(func.coalesce(func.sum(Vente.montant), 0).desc())
+        .all()
+    )
+
+    return [
+        {"id_boutique": row.id_boutique, "ca_total": float(row.ca_total)}
+        for row in rows
+    ]
+
+
+@router.get("/by_paiement")
+def get_sales_by_paiement(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> list[dict]:
+    rows = (
+        db.query(
+            Vente.mode_paiement,
+            func.coalesce(func.sum(Vente.montant), 0).label("ca_total"),
+        )
+        .group_by(Vente.mode_paiement)
+        .all()
+    )
+
+    return [
+        {"mode_paiement": row.mode_paiement, "ca_total": float(row.ca_total)}
+        for row in rows
+    ]
