@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from backend.database import get_db
-from backend.models import Client, SegmentRFM
-from backend.routers.auth import get_current_user
+try:
+    from backend.database import get_db
+    from backend.models import Client, SegmentRFM, Vente
+    from backend.routers.auth import get_current_user
+except ImportError:
+    from database import get_db
+    from models import Client, SegmentRFM, Vente
+    from routers.auth import get_current_user
 
 router = APIRouter()
 
@@ -14,17 +19,20 @@ def get_segments(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> list:
-    segments = (
-        db.query(
-            SegmentRFM.segment,
-            func.count(SegmentRFM.id_client).label("nb_clients"),
-            func.avg(SegmentRFM.recence).label("recence_moyenne"),
-            func.avg(SegmentRFM.frequence).label("frequence_moyenne"),
-            func.avg(SegmentRFM.montant).label("montant_moyen"),
-        )
-        .group_by(SegmentRFM.segment)
-        .all()
+    query = db.query(
+        SegmentRFM.segment,
+        func.count(SegmentRFM.id_client).label("nb_clients"),
+        func.avg(SegmentRFM.recence).label("recence_moyenne"),
+        func.avg(SegmentRFM.frequence).label("frequence_moyenne"),
+        func.avg(SegmentRFM.montant).label("montant_moyen"),
     )
+    if current_user.role == "boutique" and current_user.boutique_id:
+        query = (
+            query.join(Vente, Vente.id_client == SegmentRFM.id_client)
+            .filter(Vente.id_boutique == current_user.boutique_id)
+        )
+
+    segments = query.group_by(SegmentRFM.segment).all()
 
     result = [
         {
@@ -44,21 +52,26 @@ def get_clients(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ) -> list:
-    clients = (
-        db.query(
-            Client.id_client,
-            Client.nom,
-            Client.prenom,
-            Client.telephone,
-            Client.region,
-            SegmentRFM.segment,
-            SegmentRFM.recence,
-            SegmentRFM.frequence,
-            SegmentRFM.montant,
+    query = db.query(
+        Client.id_client,
+        Client.nom,
+        Client.prenom,
+        Client.telephone,
+        Client.region,
+        SegmentRFM.segment,
+        SegmentRFM.recence,
+        SegmentRFM.frequence,
+        SegmentRFM.montant,
+    ).outerjoin(SegmentRFM, Client.id_client == SegmentRFM.id_client)
+
+    if current_user.role == "boutique" and current_user.boutique_id:
+        query = (
+            query.join(Vente, Vente.id_client == Client.id_client)
+            .filter(Vente.id_boutique == current_user.boutique_id)
+            .distinct()
         )
-        .outerjoin(SegmentRFM, Client.id_client == SegmentRFM.id_client)
-        .all()
-    )
+
+    clients = query.all()
 
     result = [
         {

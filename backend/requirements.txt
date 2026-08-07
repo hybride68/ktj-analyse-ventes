@@ -1,5 +1,9 @@
-fastapi
-uvicorn
-sqlalchemy
-streamlit
-requests
+fastapi>=0.105,<0.111
+uvicorn[standard]>=0.23,<1.0
+sqlalchemy>=2.0,<3.0
+python-dotenv>=1.0,<2.0
+python-jose[cryptography]>=3.3.0,<4.0
+passlib[bcrypt]>=1.7.0,<2.0
+psycopg2-binary>=2.9,<3.0
+requests>=2.30,<3.0
+pandas>=2.0,<3.0

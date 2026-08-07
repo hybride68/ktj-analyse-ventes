@@ -1,5 +1,10 @@
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime
-from backend.database import Base
+from datetime import datetime
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String
+
+try:
+    from backend.database import Base
+except ImportError:
+    from database import Base
 
 
 class Utilisateur(Base):
@@ -10,6 +15,9 @@ class Utilisateur(Base):
     email = Column(String, unique=True, nullable=False)
     mot_de_passe = Column(String, nullable=False)
     profil = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="analyst")
+    boutique_id = Column(String, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
     date_creation = Column(DateTime, nullable=False)
 
 
@@ -84,8 +92,20 @@ class Prevision(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False)
+    boutique_id = Column(String, nullable=True)
     ca_prevision = Column(Float, nullable=False)
     ca_min = Column(Float, nullable=True)
     ca_max = Column(Float, nullable=True)
     modele = Column(String, nullable=True)
     date_calcul = Column(Date, nullable=True)
+
+
+class LoginHistory(Base):
+    __tablename__ = "login_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False)
+    email = Column(String, nullable=False)
+    login_time = Column(DateTime, nullable=False, default=datetime.utcnow)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
