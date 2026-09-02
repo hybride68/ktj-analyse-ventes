@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from frontend.theme import apply_theme, render_sidebar, render_account_card
 
 try:
     from frontend.api_config import get_api_url
@@ -13,7 +14,14 @@ except ImportError:
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-st.set_page_config(page_title="SID-Dream - Gestion Utilisateurs", layout="wide")
+if not st.session_state.get("app_shell_active", False):
+    st.set_page_config(page_title="SID-Dream - Gestion Utilisateurs", layout="wide", initial_sidebar_state="expanded")
+    apply_theme()
+    render_sidebar("Gestion Utilisateurs")
+else:
+    apply_theme()
+    render_sidebar("Gestion Utilisateurs")
+
 st.title("SID-Dream — Gestion des utilisateurs")
 
 API_URL = get_api_url()

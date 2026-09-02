@@ -17,6 +17,66 @@ _INSIGHT_SYSTEM_PROMPT = (
 )
 
 
+def _money(value) -> str:
+    try:
+        return f"{float(value):,.0f} FCFA"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _fallback_insight(key: str, data: list[dict] | dict | None, context: str = "") -> str:
+    """Fournit un message simple et utile sans dépendre de Gemini."""
+    if not data:
+        return "Aucune donnée disponible pour générer un insight fiable."
+
+    if key == "monthly":
+        records = data if isinstance(data, list) else []
+        if not records:
+            return "La série mensuelle est vide, il faut vérifier la disponibilité des données."
+        values = []
+        for item in records:
+            try:
+                values.append(float(item.get("ca_total", 0)))
+            except (TypeError, ValueError):
+                continue
+        if len(values) < 2:
+            return f"Le CA mensuel actuel est de {_money(values[-1])} pour la période observée."
+        last = values[-1]
+        prev = values[-2]
+        delta = last - prev
+        direction = "hausse" if delta >= 0 else "baisse"
+        return (
+            f"Le CA mensuel affiche une {direction} de {_money(abs(delta))} entre les deux derniers mois, "
+            f"avec un niveau actuel de {_money(last)}."
+        )
+
+    if key == "boutique":
+        records = data if isinstance(data, list) else []
+        if not records:
+            return "Les performances par boutique sont introuvables pour l'instant."
+        best = max(records, key=lambda x: float(x.get("ca_total", 0)))
+        worst = min(records, key=lambda x: float(x.get("ca_total", 0)))
+        return (
+            f"La boutique {best.get('id_boutique', 'principale')} est la meilleure avec {_money(best.get('ca_total', 0))}, "
+            f"tandis que {worst.get('id_boutique', 'la moins performante')} arrive en queue avec {_money(worst.get('ca_total', 0))}."
+        )
+
+    if key == "paiement":
+        records = data if isinstance(data, list) else []
+        if not records:
+            return "Aucune donnée de paiement n'est disponible pour analyser le mix de paiement."
+        best = max(records, key=lambda x: float(x.get("ca_total", 0)))
+        return (
+            f"Le mode de paiement {best.get('mode_paiement', 'principal')} domine le CA avec {_money(best.get('ca_total', 0))}."
+        )
+
+    if isinstance(data, list) and data:
+        total = sum(float(item.get("ca_total", 0)) for item in data if isinstance(item, dict))
+        return f"Le niveau observé sur cette vue est de {_money(total)} de CA, ce qui justifie un suivi renforcé."
+
+    return f"Le contexte {context or key} est exploitable, mais il manque encore des éléments pour un diagnostic plus fin."
+
+
 def _call_gemini(prompt: str) -> str:
     """Appel bas niveau à Gemini avec retry/backoff sur 429. Lève RuntimeError si échec."""
     gemini_api_key = os.getenv("GEMINI_API_KEY")
@@ -90,14 +150,17 @@ def generate_insight(data: dict, context: str) -> str:
     try:
         raw = _call_gemini(prompt)
     except (EnvironmentError, RuntimeError):
-        return ""
+        return _fallback_insight("general", data, context)
 
     try:
         parsed = json.loads(raw)
-        return str(parsed.get("insight", "")).strip()
+        insight = str(parsed.get("insight", "")).strip()
+        if insight:
+            return insight
+        return _fallback_insight("general", data, context)
     except (json.JSONDecodeError, AttributeError):
         # Si le JSON échoue, on retourne le texte brut (fallback robuste)
-        return raw
+        return raw or _fallback_insight("general", data, context)
 
 
 def generate_insights_batch(specs: list[dict]) -> dict[str, str]:
@@ -127,14 +190,21 @@ def generate_insights_batch(specs: list[dict]) -> dict[str, str]:
     try:
         raw = _call_gemini(prompt)
     except (EnvironmentError, RuntimeError):
-        return {k: "" for k in keys}
+        return {k: _fallback_insight(k, next((s["data"] for s in specs if s.get("key") == k), []), next((s["context"] for s in specs if s.get("key") == k), "")) for k in keys}
 
     try:
         parsed = json.loads(raw)
         if isinstance(parsed, dict):
-            return {k: str(parsed.get(k, "")).strip() for k in keys}
+            result = {}
+            for k in keys:
+                insight = str(parsed.get(k, "")).strip()
+                if insight:
+                    result[k] = insight
+                else:
+                    result[k] = _fallback_insight(k, next((s["data"] for s in specs if s.get("key") == k), []), next((s["context"] for s in specs if s.get("key") == k), ""))
+            return result
     except (json.JSONDecodeError, AttributeError):
         pass
     # Fallback : si la réponse n'est pas un JSON exploitable, on attribue
     # le texte brut à toutes les clés (moins idéal mais non bloquant)
-    return {k: raw for k in keys}
+    return {k: (raw or _fallback_insight(k, next((s["data"] for s in specs if s.get("key") == k), []), next((s["context"] for s in specs if s.get("key") == k), ""))) for k in keys}

@@ -1,4 +1,5 @@
 import os
+import runpy
 
 import pandas as pd
 import requests
@@ -6,10 +7,18 @@ import streamlit as st
 
 try:
     from frontend.api_config import get_api_url
+    from frontend.theme import apply_theme, render_sidebar
 except ImportError:
     from api_config import get_api_url
+    from theme import apply_theme, render_sidebar
 
-st.set_page_config(page_title="SID-Dream", page_icon="✨", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="SID-Dream", page_icon="✨", initial_sidebar_state="expanded")
+if "selected_page" not in st.session_state:
+    st.session_state["selected_page"] = "app"
+if "app_shell_active" not in st.session_state:
+    st.session_state["app_shell_active"] = True
+
+apply_theme(hide_sidebar=not bool(st.session_state.get("token")))
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 WEEKLY_SALES_FILE = os.path.join(DATA_DIR, 'weekly_sales.csv')
@@ -39,114 +48,129 @@ if "profil" not in st.session_state:
 
 
 def login():
-    st.title("SID-Dream")
-    st.markdown(
-        "Bienvenue dans SID-Dream, la plateforme d'analyse décisionnelle pour une PME du secteur électronique et électroménager."
-    )
+    left_col, right_col = st.columns([1.55, 0.9], vertical_alignment="center")
 
-    with st.form("login_form"):
-        email = st.text_input("Email")
-        mot_de_passe = st.text_input("Mot de passe", type="password")
-        submit = st.form_submit_button("Se connecter")
+    with left_col:
+        st.markdown(
+            """
+            <div class='login-copy-hero'>
+                <div class='login-brand'>
+                    <span>▥</span>
+                    <div>
+                        <strong>SID-Dream</strong>
+                        <small>Système d'Information Décisionnel</small>
+                    </div>
+                </div>
+                <h2>Pilotez votre performance avec la <em>donnée</em></h2>
+                <p>Analyse descriptive, diagnostique, prédictive et prescriptive, intégrée avec l'intelligence artificielle pour transformer vos données en décisions éclairées.</p>
+                <div class='login-stats'>
+                    <div class='login-stat'><strong>4</strong><small>Niveaux d'analyse</small></div>
+                    <div class='login-stat'><strong>30K</strong><small>Transactions</small></div>
+                    <div class='login-stat'><strong>4</strong><small>Segments clients</small></div>
+                    <div class='login-stat'><strong>3M</strong><small>Mois prévus</small></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with right_col:
+        st.markdown("<div class='login-panel-wrap'>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class='login-panel'>
+                <h3>Connexion</h3>
+                <p>Accédez à votre espace d'analyse</p>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        email = st.text_input("Adresse e-mail", key="login_email")
+        mot_de_passe = st.text_input("Mot de passe", type="password", key="login_password")
+        submit = st.button("Se connecter", use_container_width=True)
 
         if submit:
             if not email or not mot_de_passe:
                 st.error("Veuillez remplir tous les champs")
-                return
+            else:
+                try:
+                    response = requests.post(
+                        f"{API_URL}/auth/login",
+                        json={"email": email, "mot_de_passe": mot_de_passe},
+                        timeout=5,
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.session_state["token"] = data.get("access_token")
+                        st.session_state["profil"] = email
+                        st.success("Connexion réussie !")
+                        st.info("Utilisez le menu de pages en haut à gauche pour accéder aux sections du dashboard SID-Dream.")
+                        st.rerun()
+                    else:
+                        st.error("Email ou mot de passe incorrect")
+                except Exception as e:
+                    st.error(f"Erreur de connexion : {e}")
 
-            try:
-                response = requests.post(
-                    f"{API_URL}/auth/login",
-                    json={"email": email, "mot_de_passe": mot_de_passe},
-                    timeout=5,
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    st.session_state["token"] = data.get("access_token")
-                    st.session_state["profil"] = email
-                    st.success("Connexion réussie !")
-                    st.info("Utilisez le menu de pages en haut à gauche pour accéder aux sections du dashboard SID-Dream.")
-                    st.rerun()
-                else:
-                    st.error("Email ou mot de passe incorrect")
-            except Exception as e:
-                st.error(f"Erreur de connexion : {e}")
-
+        st.markdown("</div>", unsafe_allow_html=True)
 
 def dashboard():
+    render_sidebar("app")
+
+    st.markdown('<div class="dashboard-kicker">PERSONAL FINANCE / 2026</div>', unsafe_allow_html=True)
     st.markdown(
-        "# SID-Dream"
-        "\n#### Plateforme d’analyse décisionnelle haute valeur pour PME"
+        "<h1>Bonjour, <span class='welcome-email'>{}</span></h1>".format(st.session_state.get('profil', 'utilisateur')),
+        unsafe_allow_html=True,
     )
+    st.markdown("<p class='welcome-subtitle'>Votre performance, en un regard</p>", unsafe_allow_html=True)
+
+    st.markdown("<div class='welcome-section-title'>Bienvenue dans SID-Dream</div>", unsafe_allow_html=True)
     st.markdown(
-        "Bienvenue **{}** — accédez rapidement aux analyses stratégiques et aux données opérationnelles.".format(st.session_state['profil'])
+        """
+        <div class='welcome-panel'>
+            <p>Accédez rapidement à l'analyse descriptive, au diagnostic, aux prévisions et aux recommandations stratégiques.</p>
+            <p>Utilisez la barre latérale pour naviguer entre les pages de votre tableau de bord et piloter votre performance commerciale en temps réel.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    with st.container():
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.markdown("### Visualisation des données et KPI en temps réel")
-            st.markdown(
-                "- Analyse descriptive des ventes et du CA"
-                "\n- Analyse diagnostique des tendances et des produits"
-                "\n- Analyse prédictive basée sur les 12 dernières semaines de 2025"
-                "\n- Recommandations prescriptives par segment client"
-            )
-        with col2:
-            st.info("Utilisez le menu en haut à gauche pour naviguer entre les modules.")
-
-    st.markdown("---")
-    st.subheader("Saisie des ventes hebdomadaires")
-    st.markdown(
-        "Importez ou modifiez vos ventes hebdomadaires pour alimenter la base de données et recalibrer le modèle."
-    )
-    weekly_sales = _load_weekly_sales()
-    uploaded = st.file_uploader(
-        "Importer un CSV de ventes hebdomadaires (colonnes : week_start, ca_vente)",
-        type=["csv"],
-    )
-    if uploaded is not None:
-        try:
-            uploaded_df = pd.read_csv(uploaded)
-            if 'week_start' in uploaded_df.columns and 'ca_vente' in uploaded_df.columns:
-                uploaded_df = uploaded_df[['week_start', 'ca_vente']]
-                uploaded_df['ca_vente'] = pd.to_numeric(uploaded_df['ca_vente'], errors='coerce').fillna(0)
-                weekly_sales = uploaded_df
-                st.success("Ventes hebdomadaires importées avec succès.")
-            else:
-                st.error("Le fichier doit contenir les colonnes week_start et ca_vente.")
-        except Exception as exc:
-            st.error(f"Impossible de lire le fichier CSV : {exc}")
-
-    try:
-        editor = getattr(st, "data_editor", None) or getattr(st, "experimental_data_editor", None)
-        if editor:
-            edited = editor(weekly_sales, num_rows="dynamic")
-        else:
-            edited = weekly_sales
-            st.dataframe(weekly_sales)
-    except Exception:
-        edited = weekly_sales
-        st.dataframe(weekly_sales)
-
-    if st.button("Enregistrer les ventes hebdomadaires"):
-        try:
-            _save_weekly_sales(edited)
-            st.success("Données enregistrées. Elles seront utilisées pour recalibrer le modèle et alimenter le dashboard.")
-        except Exception as exc:
-            st.error(f"Erreur lors de l'enregistrement : {exc}")
+    quick_cols = st.columns(3)
+    with quick_cols[0]:
+        st.markdown("<div class='welcome-feature'>Analyse descriptive</div>", unsafe_allow_html=True)
+        st.caption("Suivi des performances, volumes et rentabilité.")
+    with quick_cols[1]:
+        st.markdown("<div class='welcome-feature'>Diagnostic</div>", unsafe_allow_html=True)
+        st.caption("Identification des écarts, tendances et opportunités.")
+    with quick_cols[2]:
+        st.markdown("<div class='welcome-feature'>Prédictions</div>", unsafe_allow_html=True)
+        st.caption("Prévisions commerciales et simulation de scénarios.")
 
     if st.sidebar.button("Déconnexion"):
         st.session_state["token"] = None
         st.session_state["profil"] = None
         st.rerun()
 
-    st.sidebar.markdown("### SID-Dream")
-    st.sidebar.write("Dashboard décisionnel pour la performance commerciale et la stratégie magasin.")
-    st.sidebar.write("\n---\n")
+
+PAGE_FILES = {
+    "app": None,
+    "Descriptive": os.path.join(os.path.dirname(__file__), "pages", "1_Descriptive.py"),
+    "Diagnostique": os.path.join(os.path.dirname(__file__), "pages", "2_Diagnostique.py"),
+    "Predictive": os.path.join(os.path.dirname(__file__), "pages", "3_Predictive.py"),
+    "Prescriptive": os.path.join(os.path.dirname(__file__), "pages", "4_Prescriptive.py"),
+    "Gestion Utilisateurs": os.path.join(os.path.dirname(__file__), "pages", "5_Gestion_Utilisateurs.py"),
+}
 
 
 if st.session_state["token"]:
-    dashboard()
+    selected_page = st.session_state.get("selected_page", "app")
+    if selected_page == "app":
+        dashboard()
+    else:
+        target = PAGE_FILES.get(selected_page)
+        if target and os.path.exists(target):
+            st.session_state["app_shell_active"] = True
+            runpy.run_path(target, run_name="__main__")
+        else:
+            dashboard()
 else:
     login()

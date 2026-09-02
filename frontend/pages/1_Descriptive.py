@@ -30,10 +30,18 @@ def _params_tuple(params: dict) -> tuple:
     return tuple(sorted(params.items())) if params else ()
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from frontend.theme import apply_theme, render_sidebar, render_account_card
 from frontend.components.kpi_cards import render_kpi_cards
 from backend.gemini import generate_insights_batch
 
-st.set_page_config(page_title="SID-Dream - Analyse Descriptive", layout="wide", initial_sidebar_state="collapsed")
+if not st.session_state.get("app_shell_active", False):
+    st.set_page_config(page_title="SID-Dream - Analyse Descriptive", layout="wide", initial_sidebar_state="expanded")
+    apply_theme()
+    render_sidebar("Descriptive")
+else:
+    apply_theme()
+    render_sidebar("Descriptive")
+
 st.title("SID-Dream — Analyse Descriptive")
 
 # CSS responsive : réduit la hauteur des graphiques Plotly sur mobile
@@ -156,6 +164,7 @@ try:
     boutiques = _cached_api_json("auth/boutiques", (), token)
     boutique_options = ["Tout"] + [item["id_boutique"] for item in boutiques] if boutiques else ["Tout"]
     selected_boutique = st.sidebar.selectbox("Boutique", boutique_options)
+    render_account_card()
     year_params = {} if selected_year == "Tout" else {"year": selected_year}
     if selected_boutique != "Tout":
         year_params["boutique"] = selected_boutique

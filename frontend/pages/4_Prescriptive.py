@@ -14,9 +14,18 @@ except ImportError:
     from api_config import get_api_url
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from frontend.theme import apply_theme, render_sidebar, render_account_card
 from backend.gemini import generate_insight
 
-st.set_page_config(page_title="SID-Dream - Analyse Prescriptive", layout="wide")
+if not st.session_state.get("app_shell_active", False):
+    st.set_page_config(page_title="SID-Dream - Analyse Prescriptive", layout="wide", initial_sidebar_state="expanded")
+    apply_theme()
+    render_sidebar("Prescriptive")
+else:
+    apply_theme()
+    render_sidebar("Prescriptive")
+
+render_account_card()
 st.title("SID-Dream — Analyse Prescriptive")
 
 API_URL = get_api_url()

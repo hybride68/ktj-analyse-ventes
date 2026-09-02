@@ -7,6 +7,7 @@ import requests
 import streamlit as st
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from frontend.theme import apply_theme, render_sidebar, render_account_card
 
 try:
     from frontend.api_config import get_api_url
@@ -30,7 +31,14 @@ month_labels = {1: "Jan", 2: "Fév", 3: "Mar", 4: "Avr", 5: "Mai", 6: "Juin", 7:
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from backend.gemini import generate_insight
 
-st.set_page_config(page_title="SID-Dream - Analyse Diagnostique", layout="wide")
+if not st.session_state.get("app_shell_active", False):
+    st.set_page_config(page_title="SID-Dream - Analyse Diagnostique", layout="wide", initial_sidebar_state="expanded")
+    apply_theme()
+    render_sidebar("Diagnostique")
+else:
+    apply_theme()
+    render_sidebar("Diagnostique")
+
 st.title("SID-Dream — Analyse Diagnostique")
 
 API_URL = get_api_url()
@@ -52,6 +60,7 @@ else:
     boutique_options = ["Tout"]
 
 selected_boutique = st.sidebar.selectbox("Boutique", boutique_options)
+render_account_card()
 
 year_params = {} if selected_year == "Tout" else {"year": selected_year}
 params = dict(year_params)

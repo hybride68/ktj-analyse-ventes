@@ -14,22 +14,21 @@ def _format_value(key: str, value: float) -> str:
 
 
 def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
-    """Render a glassmorphism KPI card grid using embedded HTML/CSS."""
+    """Render premium KPI cards matching the dashboard mockup."""
     if not kpis:
         return
 
-    # Titre de section avec l'année sélectionnée
     if year and year != "Tout":
-        st.markdown(f"### 📈 KPIs — Année {year}")
+        st.markdown(f"<div style='display:flex;align-items:center;gap:10px;margin:22px 0 18px;'><span style='display:inline-block;width:14px;height:14px;background:#d7b02e;border-radius:4px;box-shadow:0 0 0 1px rgba(215,176,46,.25);'></span><span style='font-size:1.1rem;font-weight:600;color:#eef3ff;'>KPIs — Année {year}</span></div>", unsafe_allow_html=True)
     else:
-        st.markdown("### 📈 KPIs — Toutes années")
+        st.markdown("<div style='display:flex;align-items:center;gap:10px;margin:22px 0 18px;'><span style='display:inline-block;width:14px;height:14px;background:#d7b02e;border-radius:4px;box-shadow:0 0 0 1px rgba(215,176,46,.25);'></span><span style='font-size:1.1rem;font-weight:600;color:#eef3ff;'>KPIs — Toutes années</span></div>", unsafe_allow_html=True)
 
     cards = [
         {
             "key": "ca_total",
             "title": "CA Total",
             "icon": "💰",
-            "color": "#8B5CF6",
+            "color": "#d7b02e",
             "value": kpis.get("ca_total", 0),
             "desc": "Chiffre d'affaires global",
         },
@@ -37,7 +36,7 @@ def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
             "key": "nb_transactions",
             "title": "Transactions",
             "icon": "🧾",
-            "color": "#22D3EE",
+            "color": "#d7b02e",
             "value": kpis.get("nb_transactions", 0),
             "desc": "Nombre total de ventes",
         },
@@ -45,7 +44,7 @@ def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
             "key": "panier_moyen",
             "title": "Panier Moyen",
             "icon": "🛒",
-            "color": "#F472B6",
+            "color": "#d7b02e",
             "value": kpis.get("panier_moyen", 0),
             "desc": "Valeur moyenne par vente",
         },
@@ -53,7 +52,7 @@ def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
             "key": "nb_clients_uniques",
             "title": "Clients",
             "icon": "👥",
-            "color": "#FB923C",
+            "color": "#d7b02e",
             "value": kpis.get("nb_clients_uniques", 0),
             "desc": "Clients distincts servis",
         },
@@ -61,7 +60,7 @@ def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
             "key": "nb_produits_uniques",
             "title": "Produits",
             "icon": "📦",
-            "color": "#34D399",
+            "color": "#d7b02e",
             "value": kpis.get("nb_produits_uniques", 0),
             "desc": "Références vendues",
         },
@@ -72,7 +71,7 @@ def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
         html_parts.append(
             f"""
             <div class="card" style="--accent:{card['color']};">
-              <div class="card-icon">{card['icon']}</div>
+              <div class="card-icon" style="background:{card['color']}1a; border-color:{card['color']}55; color:{card['color']};">{card['icon']}</div>
               <div class="card-title">{card['title']}</div>
               <div class="card-value">{_format_value(card['key'], card['value'])}</div>
               <div class="card-desc">{card['desc']}</div>
@@ -82,66 +81,73 @@ def render_kpi_cards(kpis: dict, monthly_data: list, year=None) -> None:
 
     html = f"""
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
       .kpi-grid {{
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 14px;
-        padding: 8px;
+        grid-template-columns: repeat(5, minmax(150px, 1fr));
+        gap: 18px;
+        margin-top: 10px;
+        width: 100%;
       }}
       .card {{
         position: relative;
-        min-height: 200px;
-        border-radius: 18px;
-        padding: 16px;
+        min-height: 184px;
+        border-radius: 14px;
+        padding: 20px 18px 14px;
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        gap: 6px;
-        background: rgba(255,255,255,0.12);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        border: 1px solid rgba(255,255,255,0.18);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-        overflow: hidden;
-        transition: all 0.3s ease;
+        justify-content: flex-start;
+        gap: 12px;
+        background: rgba(28, 32, 38, 0.92);
+        border: 1px solid rgba(143, 156, 176, 0.25);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.02), 0 10px 22px rgba(0,0,0,0.18);
       }}
-      .card:hover {{
-        box-shadow: 0 12px 40px rgba(255,255,255,0.15);
-        transform: translateY(-4px);
-        transition: all 0.3s ease;
-      }}
-      .card-icon {{ font-size: 26px; }}
-      .card-title {{ font-size: 14px; font-weight: 600; opacity: 0.9; }}
-      .card-value {{
+      .card-icon {{
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
         font-size: 20px;
-        font-weight: 700;
-        margin-top: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
       }}
-      .card-desc {{ font-size: 12px; opacity: 0.8; }}
+      .card-title {{
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #dfe8f9;
+        letter-spacing: 0.01em;
+        opacity: 0.9;
+      }}
+      .card-value {{
+        font-size: clamp(1.45rem, 2vw, 2.1rem);
+        line-height: 1.15;
+        font-weight: 700;
+        color: #eff3ff;
+        letter-spacing: -0.03em;
+        font-family: 'Space Grotesk', sans-serif;
+      }}
+      .card-desc {{
+        margin-top: auto;
+        font-size: 0.72rem;
+        line-height: 1.5;
+        color: #8d98ac;
+      }}
+      @media (max-width: 1100px) {{
+        .kpi-grid {{ grid-template-columns: repeat(3, minmax(150px, 1fr)); }}
+      }}
+      @media (max-width: 760px) {{
+        .kpi-grid {{ grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 12px; }}
+        .card {{ min-height: 168px; padding: 16px 14px 12px; }}
+      }}
       @media (max-width: 480px) {{
-        .kpi-grid {{
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-          padding: 4px;
-        }}
-        .card {{
-          min-height: 160px;
-          padding: 12px;
-        }}
-        .card-icon {{ font-size: 22px; }}
-        .card-title {{ font-size: 12px; }}
-        .card-value {{
-          font-size: 16px;
-          white-space: normal;
-          word-break: break-word;
-        }}
-        .card-desc {{ font-size: 11px; }}
+        .kpi-grid {{ grid-template-columns: repeat(2, minmax(120px, 1fr)); }}
+        .card-value {{ font-size: 1.15rem; }}
+        .card-title {{ font-size: 0.72rem; }}
+        .card-desc {{ font-size: 0.68rem; }}
       }}
     </style>
     <div class="kpi-grid">{''.join(html_parts)}</div>
     """
 
-    st.components.v1.html(html, height=320)
+    st.components.v1.html(html, height=260)

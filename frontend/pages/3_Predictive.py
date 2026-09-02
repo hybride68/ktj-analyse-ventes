@@ -7,6 +7,7 @@ import requests
 import streamlit as st
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from frontend.theme import apply_theme, render_sidebar, render_account_card
 
 try:
     from frontend.api_config import get_api_url
@@ -28,7 +29,14 @@ def _params_tuple(params: dict) -> tuple:
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from backend.gemini import generate_insight
 
-st.set_page_config(page_title="SID-Dream - Analyse Prédictive", layout="wide")
+if not st.session_state.get("app_shell_active", False):
+    st.set_page_config(page_title="SID-Dream - Analyse Prédictive", layout="wide", initial_sidebar_state="expanded")
+    apply_theme()
+    render_sidebar("Predictive")
+else:
+    apply_theme()
+    render_sidebar("Predictive")
+
 st.title("SID-Dream — Analyse Prédictive")
 
 API_URL = get_api_url()
