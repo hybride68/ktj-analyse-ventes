@@ -15,7 +15,7 @@ class Utilisateur(Base):
     email = Column(String, unique=True, nullable=False)
     mot_de_passe = Column(String, nullable=False)
     profil = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="analyst")
+    role = Column(String, nullable=False, default="user")
     boutique_id = Column(String, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     date_creation = Column(DateTime, nullable=False)

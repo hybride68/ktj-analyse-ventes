@@ -40,6 +40,14 @@ def ensure_schema() -> None:
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE utilisateurs ADD COLUMN is_active BOOLEAN DEFAULT TRUE"))
 
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE utilisateurs SET role = 'user' "
+                "WHERE role IS NULL OR role IN ('analyst', 'manager', 'boutique')"
+            )
+        )
+
     if "previsions" in inspector.get_table_names():
         previsions_columns = {column["name"] for column in inspector.get_columns("previsions")}
         if "boutique_id" not in previsions_columns:

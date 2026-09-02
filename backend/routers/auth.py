@@ -40,8 +40,8 @@ class CreateUserRequest(BaseModel):
     nom: str
     email: str
     mot_de_passe: str
-    profil: str = "analyste"
-    role: str = "analyst"
+    profil: str = "utilisateur"
+    role: str = "user"
     boutique_id: Optional[str] = None
     is_active: bool = True
 
@@ -55,6 +55,7 @@ class UpdateUserRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+    role: str
 
 
 class UserResponse(BaseModel):
@@ -120,7 +121,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     db.add(history)
     db.commit()
 
-    return TokenResponse(access_token=access_token, token_type="bearer")
+    return TokenResponse(access_token=access_token, token_type="bearer", role=user.role)
 
 
 def get_current_user(
@@ -163,14 +164,8 @@ def create_user(
     if db.query(Utilisateur).filter(Utilisateur.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cet email est déjà utilisé")
 
-    if payload.role not in {"admin", "analyst", "manager", "boutique"}:
+    if payload.role not in {"admin", "user"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rôle invalide")
-
-    if payload.role == "boutique" and not payload.boutique_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Boutique requise pour le rôle boutique",
-        )
 
     user = Utilisateur(
         nom=payload.nom,
@@ -178,7 +173,7 @@ def create_user(
         mot_de_passe=pwd_context.hash(payload.mot_de_passe),
         profil=payload.profil,
         role=payload.role,
-        boutique_id=payload.boutique_id,
+        boutique_id=None,
         is_active=payload.is_active,
         date_creation=datetime.utcnow(),
     )
@@ -288,17 +283,11 @@ def update_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable")
 
     if payload.role:
-        if payload.role not in {"admin", "analyst", "manager", "boutique"}:
+        if payload.role not in {"admin", "user"}:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rôle invalide")
-        if payload.role == "boutique" and not (payload.boutique_id or user.boutique_id):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Boutique requise pour le rôle boutique",
-            )
         user.role = payload.role
 
-    if payload.boutique_id is not None:
-        user.boutique_id = payload.boutique_id
+    user.boutique_id = None
 
     if payload.is_active is not None:
         user.is_active = payload.is_active

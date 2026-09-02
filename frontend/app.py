@@ -45,6 +45,8 @@ if "token" not in st.session_state:
     st.session_state["token"] = None
 if "profil" not in st.session_state:
     st.session_state["profil"] = None
+if "role" not in st.session_state:
+    st.session_state["role"] = None
 
 
 def login():
@@ -61,33 +63,29 @@ def login():
                         <small>Système d'Information Décisionnel</small>
                     </div>
                 </div>
-                <h2>Pilotez votre performance avec la <em>donnée</em></h2>
-                <p>Analyse descriptive, diagnostique, prédictive et prescriptive, intégrée avec l'intelligence artificielle pour transformer vos données en décisions éclairées.</p>
-                <div class='login-stats'>
-                    <div class='login-stat'><strong>4</strong><small>Niveaux d'analyse</small></div>
-                    <div class='login-stat'><strong>30K</strong><small>Transactions</small></div>
-                    <div class='login-stat'><strong>4</strong><small>Segments clients</small></div>
-                    <div class='login-stat'><strong>3M</strong><small>Mois prévus</small></div>
-                </div>
+                <h2>Bienvenue<br><em>dans votre espace.</em></h2>
+                <p>Analysez vos ventes, comprenez vos clients et prenez de meilleures décisions grâce aux données.</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
     with right_col:
-        st.markdown("<div class='login-panel-wrap'>", unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class='login-panel'>
-                <h3>Connexion</h3>
-                <p>Accédez à votre espace d'analyse</p>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown("<div class='login-page-marker'></div>", unsafe_allow_html=True)
+        with st.form("login_form", clear_on_submit=False):
+            st.markdown(
+                """
+                <div class='login-panel-heading'>
+                    <h3>Connexion</h3>
+                    <p>Accédez à votre espace d'analyse</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        email = st.text_input("Adresse e-mail", key="login_email")
-        mot_de_passe = st.text_input("Mot de passe", type="password", key="login_password")
-        submit = st.button("Se connecter", use_container_width=True)
+            email = st.text_input("Adresse e-mail", key="login_email")
+            mot_de_passe = st.text_input("Mot de passe", type="password", key="login_password")
+            submit = st.form_submit_button("Se connecter", use_container_width=True)
 
         if submit:
             if not email or not mot_de_passe:
@@ -103,6 +101,7 @@ def login():
                         data = response.json()
                         st.session_state["token"] = data.get("access_token")
                         st.session_state["profil"] = email
+                        st.session_state["role"] = data.get("role", "user")
                         st.success("Connexion réussie !")
                         st.info("Utilisez le menu de pages en haut à gauche pour accéder aux sections du dashboard SID-Dream.")
                         st.rerun()
@@ -111,7 +110,6 @@ def login():
                 except Exception as e:
                     st.error(f"Erreur de connexion : {e}")
 
-        st.markdown("</div>", unsafe_allow_html=True)
 
 def dashboard():
     render_sidebar("app")
@@ -148,6 +146,7 @@ def dashboard():
     if st.sidebar.button("Déconnexion"):
         st.session_state["token"] = None
         st.session_state["profil"] = None
+        st.session_state["role"] = None
         st.rerun()
 
 

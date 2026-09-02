@@ -15,8 +15,6 @@ except ImportError:
 
 
 def _apply_user_scope(query, current_user):
-    if current_user.role == "boutique" and current_user.boutique_id:
-        query = query.filter(Vente.id_boutique == current_user.boutique_id)
     return query
 
 router = APIRouter()

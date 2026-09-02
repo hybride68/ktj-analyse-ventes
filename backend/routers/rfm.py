@@ -26,12 +26,6 @@ def get_segments(
         func.avg(SegmentRFM.frequence).label("frequence_moyenne"),
         func.avg(SegmentRFM.montant).label("montant_moyen"),
     )
-    if current_user.role == "boutique" and current_user.boutique_id:
-        query = (
-            query.join(Vente, Vente.id_client == SegmentRFM.id_client)
-            .filter(Vente.id_boutique == current_user.boutique_id)
-        )
-
     segments = query.group_by(SegmentRFM.segment).all()
 
     result = [
@@ -63,13 +57,6 @@ def get_clients(
         SegmentRFM.frequence,
         SegmentRFM.montant,
     ).outerjoin(SegmentRFM, Client.id_client == SegmentRFM.id_client)
-
-    if current_user.role == "boutique" and current_user.boutique_id:
-        query = (
-            query.join(Vente, Vente.id_client == Client.id_client)
-            .filter(Vente.id_boutique == current_user.boutique_id)
-            .distinct()
-        )
 
     clients = query.all()
 

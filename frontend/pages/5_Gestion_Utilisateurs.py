@@ -59,13 +59,13 @@ with st.form("create_user_form"):
         if not nom or not email or not mot_de_passe:
             st.error("Nom, email et mot de passe sont obligatoires")
         else:
-            # rôle et profil forcés : 'analyst' (consultation uniquement)
+            # Les comptes créés depuis cette page sont des utilisateurs standards.
             payload = {
                 "nom": nom,
                 "email": email,
                 "mot_de_passe": mot_de_passe,
-                "profil": "consultant",
-                "role": "analyst",
+                "profil": "utilisateur",
+                "role": "user",
                 "boutique_id": None,
                 "is_active": is_active,
             }

@@ -120,8 +120,6 @@ def get_monthly_previsions(
         func.sum(Prevision.ca_min).label("ca_min_moyenne"),
         func.sum(Prevision.ca_max).label("ca_max_moyenne"),
     )
-    if current_user.role == "boutique" and current_user.boutique_id:
-        query = query.filter(Prevision.boutique_id == current_user.boutique_id)
     if boutique:
         query = query.filter(Prevision.boutique_id == boutique)
     if year:
@@ -173,8 +171,6 @@ def get_daily_previsions(
         Prevision.ca_min,
         Prevision.ca_max,
     )
-    if current_user.role == "boutique" and current_user.boutique_id:
-        query = query.filter(Prevision.boutique_id == current_user.boutique_id)
     if boutique:
         query = query.filter(Prevision.boutique_id == boutique)
     if year:
@@ -215,7 +211,7 @@ def retrain_previsions(
             forecast_value = round(float(row["ca_prevision"]), 2) if pd.notna(row["ca_prevision"]) else 0
             forecast_row = Prevision(
                 date=forecast_date,
-                boutique_id=current_user.boutique_id if current_user.role == "boutique" else None,
+                boutique_id=None,
                 ca_prevision=forecast_value,
                 ca_min=round(float(row["ca_min"]), 2) if pd.notna(row["ca_min"]) else 0,
                 ca_max=round(float(row["ca_max"]), 2) if pd.notna(row["ca_max"]) else 0,
@@ -229,8 +225,6 @@ def retrain_previsions(
         return {"status": "ok", "created": created, "source": "prophet_model.pkl"}
 
     base_query = db.query(Prevision)
-    if current_user.role == "boutique" and current_user.boutique_id:
-        base_query = base_query.filter(Prevision.boutique_id == current_user.boutique_id)
     base_rows = base_query.order_by(Prevision.date.desc()).limit(6).all()
     if base_rows:
         base_value = sum(item.ca_prevision or 0 for item in base_rows) / len(base_rows)
@@ -243,7 +237,7 @@ def retrain_previsions(
         forecast_value = round(base_value * (1 + 0.05 * month_index), 2)
         forecast_row = Prevision(
             date=forecast_date,
-            boutique_id=current_user.boutique_id if current_user.role == "boutique" else None,
+            boutique_id=None,
             ca_prevision=forecast_value,
             ca_min=round(forecast_value * 0.9, 2),
             ca_max=round(forecast_value * 1.1, 2),

@@ -33,8 +33,9 @@ def render_sidebar(active_page: str = "Descriptive") -> None:
         "Diagnostique",
         "Predictive",
         "Prescriptive",
-        "Gestion Utilisateurs",
     ]
+    if st.session_state.get("role") == "admin":
+      pages.append("Gestion Utilisateurs")
     for page_name in pages:
         if page_name == active_page:
             st.markdown(f"<div class='active-nav-pill'>{page_name}</div>", unsafe_allow_html=True)
@@ -48,13 +49,14 @@ def render_sidebar(active_page: str = "Descriptive") -> None:
 
 def render_account_card() -> None:
     """Render the user account block after filters in the sidebar."""
+    account_label = "Administrateur" if st.session_state.get("role") == "admin" else "Utilisateur standard"
     with st.sidebar:
         st.markdown(
-          """
+          f"""
           <div class='sidebar-user-card'>
             <div class='user-avatar'>G</div>
             <div>
-              <strong>Gérant</strong>
+              <strong>{account_label}</strong>
               <small>Compte connecté</small>
             </div>
           </div>
@@ -337,8 +339,11 @@ def apply_theme(hide_sidebar: bool = False) -> None:
           }}
 
           .login-copy-hero {{
-            padding-top: 2rem;
-            padding-left: 1rem;
+            min-height: 510px;
+            padding: 3.5rem 3rem;
+            background: #050505;
+            clip-path: polygon(0 0, 100% 0, 72% 100%, 0 100%);
+            color: #ffffff;
           }}
           .login-panel-wrap {{
             display: flex;
@@ -346,6 +351,23 @@ def apply_theme(hide_sidebar: bool = False) -> None:
             justify-content: center;
             min-height: 500px;
             padding-top: 1rem;
+          }}
+          div[data-testid='stForm'] {{
+            width: min(100%, 26rem);
+            margin: 0 auto;
+            padding: 2rem 2.5rem 1.5rem;
+            background: #f5f5f3;
+            border: 0;
+            border-radius: 0;
+          }}
+          .login-panel-heading h3 {{
+            margin: 0 0 .2rem;
+            font-size: 1.8rem;
+            color: #111111;
+          }}
+          .login-panel-heading p {{
+            margin: 0 0 1.3rem;
+            color: #666666;
           }}
           .login-panel {{
             width: 100%;
@@ -442,14 +464,46 @@ def apply_theme(hide_sidebar: bool = False) -> None:
           .login-panel {{
             width: min(100%, 26rem);
             justify-self: end;
-            background: rgba(12,17,24,.85);
-            border: 1px solid var(--line);
-            border-radius: 20px;
-            padding: 1.5rem 1.25rem;
-            box-shadow: 0 20px 40px rgba(0,0,0,.26);
+            background: #f5f5f3;
+            border: 0;
+            border-radius: 0;
+            padding: 2rem 2.5rem 1rem;
+            box-shadow: none;
           }}
-          .login-panel h3 {{ font-size: 1.5rem; margin-bottom: .2rem; }}
-          .login-panel p {{ margin-top: 0; color: var(--muted); }}
+          .login-panel h3 {{ font-size: 1.8rem; margin-bottom: .2rem; color: #111111; }}
+          .login-panel p {{ margin-top: 0; color: #666666; }}
+
+          /* Keep the login surface light while the authenticated app stays dark. */
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) {{
+            background: #f5f5f3;
+          }}
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) .block-container {{
+            padding: 0 !important;
+          }}
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) div[data-testid='stForm'] {{
+            box-shadow: none;
+          }}
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) [data-testid='stHorizontalBlock'] {{
+            min-height: 100vh;
+            align-items: stretch;
+          }}
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) [data-testid='stTextInput'] input {{
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid #666666;
+            border-radius: 0;
+            color: #111111;
+          }}
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) [data-testid='stTextInput'] label {{
+            color: #555555;
+          }}
+          [data-testid='stAppViewContainer'] > .main:has(.login-page-marker) .stButton > button {{
+            background: #050505;
+            border-color: #050505;
+            border-radius: 999px;
+            color: #ffffff;
+            margin-top: .7rem;
+          }}
 
           @media (max-width: 880px) {{
             .login-shell {{
@@ -464,6 +518,17 @@ def apply_theme(hide_sidebar: bool = False) -> None:
             .login-stats {{
               grid-template-columns: repeat(2, minmax(0, 1fr));
               max-width: none;
+            }}
+            .login-copy-hero {{
+              min-height: auto;
+              clip-path: none;
+              padding: 2rem 1.5rem;
+            }}
+            .login-panel {{
+              padding: 2rem 1.5rem;
+            }}
+            div[data-testid='stForm'] {{
+              padding: 2rem 1.5rem 1.5rem;
             }}
           }}
         </style>
