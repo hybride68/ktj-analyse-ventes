@@ -1,10 +1,14 @@
 import json
 import os
 import sys
+from datetime import datetime
+from io import BytesIO
 
 import os
 import sys
 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -150,6 +154,81 @@ def _render_executive_summary(kpis: dict, monthly_df: pd.DataFrame, boutique: st
     )
 
 
+def _build_dashboard_pdf(
+    kpis: dict,
+    monthly_df: pd.DataFrame,
+    boutique_df: pd.DataFrame,
+    paiement_df: pd.DataFrame,
+    insights: dict[str, str],
+    year: str,
+    boutique: str,
+) -> bytes:
+    """Génère une synthèse PDF autonome à partir des données déjà affichées."""
+    output = BytesIO()
+    with PdfPages(output) as pdf:
+        figure = plt.figure(figsize=(11.69, 8.27), facecolor="#10151d")
+        figure.text(0.06, 0.92, "SID-Dream - Dashboard commercial", color="white", fontsize=22, weight="bold")
+        figure.text(
+            0.06,
+            0.875,
+            f"Périmètre : {boutique} | Année : {year} | Exporté le {datetime.now():%d/%m/%Y à %H:%M}",
+            color="#9aa8bb",
+            fontsize=10,
+        )
+
+        kpi_items = [
+            ("CA total", f"{float(kpis.get('ca_total', 0)):,.0f} FCFA"),
+            ("Transactions", f"{int(kpis.get('nb_transactions', 0)):,}"),
+            ("Panier moyen", f"{float(kpis.get('panier_moyen', 0)):,.0f} FCFA"),
+            ("Clients uniques", f"{int(kpis.get('nb_clients_uniques', 0)):,}"),
+        ]
+        for index, (label, value) in enumerate(kpi_items):
+            left = 0.06 + index * 0.235
+            figure.text(left, 0.77, label, color="#9aa8bb", fontsize=10)
+            figure.text(left, 0.72, value, color="#f4d36b", fontsize=17, weight="bold")
+
+        axes = figure.subplots(1, 2)
+        if not monthly_df.empty:
+            monthly_plot = monthly_df.copy()
+            monthly_plot["label"] = monthly_plot["mois"].astype(str) + "/" + monthly_plot["annee"].astype(str)
+            axes[0].plot(monthly_plot["label"], monthly_plot["ca_total"], color="#31d0b1", marker="o")
+            axes[0].set_title("Évolution mensuelle du CA", color="white")
+            axes[0].tick_params(axis="x", rotation=45, labelsize=7)
+        else:
+            axes[0].text(0.5, 0.5, "Aucune donnée mensuelle", ha="center", color="white")
+        if not boutique_df.empty:
+            axes[1].barh(boutique_df["id_boutique"].astype(str), boutique_df["ca_total"], color="#f4d36b")
+            axes[1].set_title("CA par boutique", color="white")
+        else:
+            axes[1].text(0.5, 0.5, "Aucune donnée boutique", ha="center", color="white")
+        for axis in axes:
+            axis.set_facecolor("#161d27")
+            axis.tick_params(colors="#dce5f1")
+            for spine in axis.spines.values():
+                spine.set_color("#334154")
+            axis.grid(axis="y", color="#334154", alpha=0.35)
+            axis.title.set_color("white")
+        figure.tight_layout(rect=(0.04, 0.2, 0.96, 0.68))
+        pdf.savefig(figure, facecolor=figure.get_facecolor())
+        plt.close(figure)
+
+        detail = plt.figure(figsize=(11.69, 8.27), facecolor="#10151d")
+        detail.text(0.06, 0.92, "Répartition et insights", color="white", fontsize=20, weight="bold")
+        if not paiement_df.empty:
+            payment_axis = detail.add_axes((0.08, 0.48, 0.38, 0.32))
+            payment_axis.pie(paiement_df["ca_total"], labels=paiement_df["mode_paiement"], autopct="%.1f%%")
+            payment_axis.set_title("CA par mode de paiement", color="white")
+        insight_text = "\n\n".join(
+            f"{title.capitalize()} : {text}" for title, text in insights.items() if text
+        ) or "Aucun insight disponible."
+        detail.text(0.54, 0.78, "Insights IA", color="#f4d36b", fontsize=14, weight="bold")
+        detail.text(0.54, 0.72, insight_text, color="white", fontsize=10, wrap=True, va="top", linespacing=1.6)
+        detail.text(0.06, 0.1, "Document généré par SID-Dream", color="#9aa8bb", fontsize=9)
+        pdf.savefig(detail, facecolor=detail.get_facecolor())
+        plt.close(detail)
+    return output.getvalue()
+
+
 API_URL = get_api_url()
 token = st.session_state.get("token")
 if not token:
@@ -254,6 +333,24 @@ try:
         st.plotly_chart(fig_paiement, use_container_width=True)
         if insights.get("paiement"):
             st.info(insights["paiement"])
+
+    st.markdown("### Export")
+    dashboard_pdf = _build_dashboard_pdf(
+        kpis=kpis,
+        monthly_df=monthly_df,
+        boutique_df=boutique_df,
+        paiement_df=paiement_df,
+        insights=insights,
+        year=str(selected_year),
+        boutique=selected_boutique,
+    )
+    st.download_button(
+        "Télécharger le dashboard en PDF",
+        data=dashboard_pdf,
+        file_name=f"sid-dream-dashboard-{datetime.now():%Y%m%d-%H%M}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
 
 except Exception as e:
     st.error(f"Erreur de connexion : {e}")

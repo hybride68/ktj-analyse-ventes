@@ -49,6 +49,67 @@ segment_colors = {
     "VIP": "#34D399",
 }
 
+
+def _build_recommendations(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Construit les actions à partir des indicateurs RFM réellement disponibles."""
+    if dataframe.empty:
+        return pd.DataFrame(columns=["segment", "action", "priorité"])
+
+    working = dataframe.copy()
+    metric_columns = ["recence_moyenne", "frequence_moyenne", "montant_moyen"]
+    for column in metric_columns:
+        working[column] = pd.to_numeric(working[column], errors="coerce").fillna(0)
+
+    recency_reference = working["recence_moyenne"].median()
+    frequency_reference = working["frequence_moyenne"].median()
+    amount_reference = working["montant_moyen"].median()
+    recommendations = []
+
+    for _, row in working.iterrows():
+        segment = str(row.get("segment") or "Non classé")
+        recency = row["recence_moyenne"]
+        frequency = row["frequence_moyenne"]
+        amount = row["montant_moyen"]
+
+        if segment == "VIP":
+            action = "Maintenir une fidélisation premium et proposer des offres exclusives."
+        elif segment == "Fidèles":
+            action = "Développer la fréquence d'achat avec des offres personnalisées."
+        elif segment == "Occasionnels":
+            action = "Lancer une campagne ciblée pour augmenter la fréquence d'achat."
+        elif segment == "A risque":
+            action = "Déclencher une relance prioritaire avec une remise personnalisée."
+        else:
+            action = "Tester une campagne ciblée et suivre son impact sur les achats."
+
+        signals = []
+        if recency_reference and recency > recency_reference * 1.5:
+            signals.append("récence élevée")
+        if frequency_reference and frequency < frequency_reference * 0.75:
+            signals.append("fréquence faible")
+        if amount_reference and amount > amount_reference * 1.5:
+            signals.append("montant élevé")
+        if signals:
+            action += f" Indicateurs détectés : {', '.join(signals)}."
+
+        priority = "Haute" if segment == "A risque" or recency > recency_reference * 1.5 else "Moyenne"
+        if segment == "VIP" and amount > amount_reference:
+            priority = "Haute"
+
+        recommendations.append({
+            "segment": segment,
+            "clients": int(row.get("nb_clients", 0)),
+            "récence moyenne": round(recency, 2),
+            "fréquence moyenne": round(frequency, 2),
+            "montant moyen": round(amount, 2),
+            "action": action,
+            "priorité": priority,
+        })
+
+    return pd.DataFrame(recommendations).sort_values(
+        ["priorité", "clients"], ascending=[True, False], key=lambda values: values.map({"Haute": 0, "Moyenne": 1}).fillna(2) if values.name == "priorité" else values
+    )
+
 if not segments_df.empty:
     segments_df = segments_df.copy()
     segments_df["ca_total_segment"] = segments_df["nb_clients"] * segments_df["montant_moyen"]
@@ -146,18 +207,10 @@ if not clients_df.empty:
     st.plotly_chart(fig_scatter, use_container_width=True)
 
 st.subheader("Recommandations d’action")
-for _, row in segments_df.head(5).iterrows():
-    st.info(f"{row['segment']} : {int(row['nb_clients'])} clients, montant moyen {row['montant_moyen']:.0f} FCFA")
-
-recommendations = pd.DataFrame([
-    {"segment": "VIP", "action": "Proposer offres exclusives et fidélisation premium", "priorité": "Haute"},
-    {"segment": "Fidèles", "action": "Renforcer la communication et les promotions personnalisées", "priorité": "Moyenne"},
-    {"segment": "Occasionnels", "action": "Relancer via offres ciblées pour augmenter la fréquence", "priorité": "Moyenne"},
-    {"segment": "A risque", "action": "Relancer avec remises et service client dédié", "priorité": "Haute"},
-])
+recommendations = _build_recommendations(segments_df)
 
 st.subheader("Tableau de recommandations")
-st.table(recommendations)
+st.dataframe(recommendations, use_container_width=True, hide_index=True)
 
 try:
     insight = generate_insight(segments_df.to_dict("records"), "Recommandations d'action par segment RFM")

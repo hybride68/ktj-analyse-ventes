@@ -114,7 +114,6 @@ def login():
 def dashboard():
     render_sidebar("app")
 
-    st.markdown('<div class="dashboard-kicker">PERSONAL FINANCE / 2026</div>', unsafe_allow_html=True)
     st.markdown(
         "<h1>Bonjour, <span class='welcome-email'>{}</span></h1>".format(st.session_state.get('profil', 'utilisateur')),
         unsafe_allow_html=True,

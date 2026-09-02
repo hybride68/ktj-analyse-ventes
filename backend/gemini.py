@@ -1,8 +1,16 @@
+import ast
 import json
 import os
 import time
+from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
+
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(_PROJECT_ROOT / "backend" / ".env")
+load_dotenv(_PROJECT_ROOT / ".env")
 
 # flash-lite : quota gratuit plus généreux (30 req/min, 1500 req/jour) que flash (20 req/min)
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
@@ -12,8 +20,11 @@ MAX_RETRIES = 6  # 6 essais × ~10s = jusqu'à 60s d'attente pour passer le quot
 _INSIGHT_SYSTEM_PROMPT = (
     "Tu es un analyste business expert. L'entreprise est une PME camerounaise du secteur électronique et électroménager. "
     "La devise est le FCFA (Franc CFA) et les montants sont en FCFA. "
-    "Génère des insights courts (2-3 phrases maximum) en français "
-    "pour aider le décideur à prendre une décision."
+    "Analyse uniquement les données fournies, sans inventer de valeur. "
+    "Génère des insights courts mais explicatifs (3-5 phrases maximum) en français. "
+    "Chaque insight doit citer au moins un chiffre ou une comparaison présente dans les données, "
+    "expliquer ce que cela signifie pour l'activité, puis proposer une action concrète. "
+    "Si les données sont insuffisantes, dis précisément quelle information manque."
 )
 
 
@@ -139,28 +150,38 @@ def _call_gemini(prompt: str) -> str:
     )
 
 
+def _parse_structured_response(raw: str) -> dict:
+    """Accepte le JSON strict et le dictionnaire Python parfois renvoyé par Gemini."""
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.removeprefix("```").removeprefix("json").removesuffix("```").strip()
+    try:
+        parsed = json.loads(cleaned)
+    except (json.JSONDecodeError, TypeError):
+        try:
+            parsed = ast.literal_eval(cleaned)
+        except (ValueError, SyntaxError):
+            return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def generate_insight(data: dict, context: str) -> str:
     """Génère un insight court en français à partir de données et d'un contexte (1 appel API)."""
     prompt = (
         f"{_INSIGHT_SYSTEM_PROMPT}\n\n"
-        f"Voici les données : {data}\n"
-        f"Contexte : {context}\n"
-        "Réponds uniquement avec un objet JSON de la forme {\"insight\": \"...\"}."
+        f"Contexte métier : {context}\n"
+        f"Données structurées à analyser : {json.dumps(data, ensure_ascii=False, default=str)}\n"
+        "Réponds uniquement avec un objet JSON de la forme "
+        "{\"insight\": \"constat chiffré ; explication ; action recommandée\"}."
     )
     try:
         raw = _call_gemini(prompt)
     except (EnvironmentError, RuntimeError):
         return _fallback_insight("general", data, context)
 
-    try:
-        parsed = json.loads(raw)
-        insight = str(parsed.get("insight", "")).strip()
-        if insight:
-            return insight
-        return _fallback_insight("general", data, context)
-    except (json.JSONDecodeError, AttributeError):
-        # Si le JSON échoue, on retourne le texte brut (fallback robuste)
-        return raw or _fallback_insight("general", data, context)
+    parsed = _parse_structured_response(raw)
+    insight = str(parsed.get("insight", "")).strip()
+    return insight or _fallback_insight("general", data, context)
 
 
 def generate_insights_batch(specs: list[dict]) -> dict[str, str]:
@@ -176,35 +197,31 @@ def generate_insights_batch(specs: list[dict]) -> dict[str, str]:
         return {}
 
     items = "\n".join(
-        f"- {s['key']} (contexte: {s['context']}) : {s['data']}"
+        f"- Clé: {s['key']}\n  Contexte: {s['context']}\n  Données: "
+        f"{json.dumps(s['data'], ensure_ascii=False, default=str)}"
         for s in specs
     )
     keys = [s["key"] for s in specs]
     prompt = (
         f"{_INSIGHT_SYSTEM_PROMPT}\n\n"
         f"Voici plusieurs jeux de données à analyser :\n{items}\n\n"
-        f"Réponds uniquement avec un objet JSON de la forme "
-        f'{{"{keys[0]}": "...", "{keys[1] if len(keys) > 1 else "autre"}": "..."}} '
-        "contenant un insight court pour chaque clé listée ci-dessus."
+        "Pour chaque clé, réponds uniquement avec un insight de 3 à 5 phrases qui contient "
+        "un constat chiffré, une explication et une action concrète. "
+        "N'invente aucune donnée. Retourne uniquement un objet JSON dont les clés sont exactement : "
+        f"{json.dumps(keys, ensure_ascii=False)}."
     )
     try:
         raw = _call_gemini(prompt)
     except (EnvironmentError, RuntimeError):
         return {k: _fallback_insight(k, next((s["data"] for s in specs if s.get("key") == k), []), next((s["context"] for s in specs if s.get("key") == k), "")) for k in keys}
 
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            result = {}
-            for k in keys:
-                insight = str(parsed.get(k, "")).strip()
-                if insight:
-                    result[k] = insight
-                else:
-                    result[k] = _fallback_insight(k, next((s["data"] for s in specs if s.get("key") == k), []), next((s["context"] for s in specs if s.get("key") == k), ""))
-            return result
-    except (json.JSONDecodeError, AttributeError):
-        pass
-    # Fallback : si la réponse n'est pas un JSON exploitable, on attribue
-    # le texte brut à toutes les clés (moins idéal mais non bloquant)
-    return {k: (raw or _fallback_insight(k, next((s["data"] for s in specs if s.get("key") == k), []), next((s["context"] for s in specs if s.get("key") == k), ""))) for k in keys}
+    parsed = _parse_structured_response(raw)
+    return {
+        k: str(parsed.get(k, "")).strip()
+        or _fallback_insight(
+            k,
+            next((s["data"] for s in specs if s.get("key") == k), []),
+            next((s["context"] for s in specs if s.get("key") == k), ""),
+        )
+        for k in keys
+    }

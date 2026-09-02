@@ -47,6 +47,39 @@ except Exception:
 
 st.sidebar.info("Page réservée aux administrateurs : création et suppression d'utilisateurs (consultation seulement).")
 
+st.subheader("Importer des données")
+st.caption("Les fichiers CSV sont contrôlés avant insertion. Les lignes invalides ou déjà présentes sont ignorées.")
+dataset_labels = {
+    "ventes": "Ventes",
+    "produits": "Produits",
+    "clients": "Clients",
+    "boutiques": "Boutiques",
+}
+selected_dataset = st.selectbox("Type de données", list(dataset_labels), format_func=dataset_labels.get)
+uploaded_file = st.file_uploader("Fichier CSV", type=["csv"])
+if uploaded_file is not None and st.button("Valider et importer", key="import_data"):
+    try:
+        import_response = requests.post(
+            f"{API_URL}/imports/{selected_dataset}",
+            files={"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")},
+            headers=headers,
+            timeout=60,
+        )
+        if import_response.status_code == 200:
+            report = import_response.json()
+            st.success(f"Import terminé : {report['lignes_inserees']} ligne(s) insérée(s).")
+            st.info(f"{report['lignes_rejetees']} ligne(s) rejetée(s), dont {report['total_erreurs']} erreur(s).")
+            if report.get("erreurs"):
+                st.dataframe(pd.DataFrame(report["erreurs"]), use_container_width=True)
+        else:
+            try:
+                error_message = import_response.json().get("detail", import_response.text)
+            except ValueError:
+                error_message = import_response.text
+            st.error(f"Import impossible : {error_message}")
+    except requests.RequestException as exc:
+        st.error(f"Erreur de connexion pendant l'import : {exc}")
+
 with st.form("create_user_form"):
     st.subheader("Créer un utilisateur (lecture seule)")
     nom = st.text_input("Nom")

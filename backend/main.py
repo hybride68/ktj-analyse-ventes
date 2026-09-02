@@ -6,11 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 try:
     from backend import models
     from backend.database import Base, engine, ensure_schema
-    from backend.routers import auth, kpis, rfm, previsions
+    from backend.routers import auth, imports, kpis, rfm, previsions
 except ImportError:
     import models
     from database import Base, engine, ensure_schema
-    from routers import auth, kpis, rfm, previsions
+    from routers import auth, imports, kpis, rfm, previsions
 
 app = FastAPI(title="Projet PME API")
 
@@ -45,6 +45,7 @@ def read_root() -> dict:
 
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(imports.router, prefix="/imports", tags=["imports"])
 app.include_router(kpis.router, prefix="/kpis", tags=["kpis"])
 app.include_router(rfm.router, prefix="/rfm", tags=["rfm"])
 app.include_router(previsions.router, prefix="/previsions", tags=["previsions"])
